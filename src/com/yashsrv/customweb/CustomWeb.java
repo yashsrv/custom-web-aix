@@ -9,6 +9,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.SimpleEvent;
@@ -32,6 +33,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	// Simple properties.
 	private String baseUrl = "";
 	private YailDictionary requestDict = new YailDictionary();
+	private int callTimeout = 0;
 
   public CustomWeb(ComponentContainer container) {
     super(container.$form());
@@ -53,7 +55,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleProperty(description = "")
 	public void RequestHeaders(YailDictionary requestHeaders) {
-		if (requestHeaders.isEmpty()) {
+		if (!requestHeaders.isEmpty()) {
 			this.requestDict = requestHeaders;
 		} else {
 			ErrorOccured("RequestHeaders", "", "The RequestHeaders size cannot be 0.");
@@ -65,6 +67,20 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		return requestDict;
 	}
 
+	@SimpleProperty(description = "")
+	public void CallTimeout(int callTimeout) {
+		if (callTimeout > 0) {
+			this.callTimeout = callTimeout;
+		} else {
+			ErrorOccured("CallTimeout", "", "The CallTimeout cannot be negative.");
+		}
+	}
+
+	@SimpleProperty(description = "")
+	public int CallTimeout() {
+		return callTimeout;
+	}
+
   @SimpleFunction(description = "")
 	public void Get(String tag, String endpoint) {
 		performRequest(tag, endpoint, "GET", requestDict, null);
@@ -72,15 +88,18 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	private void performRequest(String tag, String endpoint, String method, 
 			YailDictionary requestDict, RequestBody body) {
-
-		String url = baseUrl + endpoint;
-		Headers requestHeaders = dictToHeaders(requestDict);
-		Request request = new Request.Builder()
+		
+		// Configure request.
+		final String url = baseUrl + endpoint;
+		final Headers requestHeaders = dictToHeaders(requestDict);
+		client.newBuilder().callTimeout(callTimeout, TimeUnit.MICROSECONDS).build();
+		final Request request = new Request.Builder()
 			.url(url)
 			.method(method, body)
 			.headers(requestHeaders)
 			.build();
 
+		// Process Call Async.
 		client.newCall(request).enqueue(new Callback() {
 			@Override
 			public void onResponse(Call call, Response response) {
