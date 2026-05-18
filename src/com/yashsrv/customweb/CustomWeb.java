@@ -1,24 +1,25 @@
 package com.yashsrv.customweb;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Headers;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleFunction;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.YailDictionary;
-import com.google.appinventor.components.annotations.SimpleFunction;
-import com.google.appinventor.components.annotations.SimpleProperty;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 @DesignerComponent(
 	version = 1,
@@ -44,7 +45,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		if (!baseUrl.isEmpty()) {
 			this.baseUrl = baseUrl;
 		} else {
-			ErrorOccured("BaseUrl", "", "The BaseUrl cannot be empty.");
+			ErrorOccured("BaseUrl", "The BaseUrl cannot be empty.");
 		}
 	}
 
@@ -58,7 +59,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		if (!requestHeaders.isEmpty()) {
 			this.requestDict = requestHeaders;
 		} else {
-			ErrorOccured("RequestHeaders", "", "The RequestHeaders size cannot be 0.");
+			ErrorOccured("RequestHeaders", "The RequestHeaders size cannot be 0.");
 		}
 	}
 
@@ -72,7 +73,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		if (callTimeout > 0) {
 			this.callTimeout = callTimeout;
 		} else {
-			ErrorOccured("CallTimeout", "", "The CallTimeout cannot be negative.");
+			ErrorOccured("CallTimeout", "The CallTimeout cannot be negative.");
 		}
 	}
 
@@ -83,21 +84,28 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
   @SimpleFunction(description = "")
 	public void Get(String tag, String endpoint) {
-		performRequest(tag, endpoint, "GET", requestDict, null);
+		performHttpRequest(tag, endpoint, "GET", null);
 	}
 
-	private void performRequest(String tag, String endpoint, String method, 
-			YailDictionary requestDict, RequestBody body) {
-		
+	@SimpleFunction(description = "")
+	public void Post(String tag, String endpoint, YailDictionary body) {
+		performHttpRequest(tag, endpoint, "POST", body.toString());
+	}
+
+	private void performHttpRequest(String tag, String endpoint, String method, String body) {
 		// Configure request.
 		final String url = baseUrl + endpoint;
 		final Headers requestHeaders = dictToHeaders(requestDict);
 		client.newBuilder().callTimeout(callTimeout, TimeUnit.MICROSECONDS).build();
+		RequestBody requestBody = body == null
+				? null
+				: RequestBody.create(MediaType.get("application/json"), body);
+
 		final Request request = new Request.Builder()
-			.url(url)
-			.method(method, body)
-			.headers(requestHeaders)
-			.build();
+				.url(url)
+				.method(method, requestBody)
+				.headers(requestHeaders)
+				.build();
 
 		// Process Call Async.
 		client.newCall(request).enqueue(new Callback() {
@@ -112,15 +120,15 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 						responseBody = response.body().string(); // Prevents NullPointerException.
 					}
 
-					OnResponse(tag, method, statusCode, responseDict, responseBody);
+					OnResponse(tag, statusCode, responseDict, responseBody);
 				} catch (IOException e) {
-					ErrorOccured(tag, method, e.getMessage());
+					ErrorOccured(tag, e.getMessage());
 				}
 			}
 
 			@Override
 			public void onFailure(Call call, IOException e) {
-				ErrorOccured(tag, method, e.getMessage());
+				ErrorOccured(tag, e.getMessage());
 			}
 		});
 	}
@@ -143,23 +151,23 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleEvent(description = "")
 	public void OnResponse(
-			final String tag, final String method, final int statusCode, 
+			final String tag, final int statusCode, 
 			final YailDictionary responseHeaders, final String responseBody) {
 		form.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
 				EventDispatcher.dispatchEvent(
-						CustomWeb.this, "OnResponse", tag, method, statusCode, responseHeaders, responseBody);
+						CustomWeb.this, "OnResponse", tag, statusCode, responseHeaders, responseBody);
 			}
 		});
 	}
 
 	@SimpleEvent(description = "")
-	public void ErrorOccured(final String tag, final String method, final String errorMessage) {
+	public void ErrorOccured(final String tag, final String errorMessage) {
 		form.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				EventDispatcher.dispatchEvent(CustomWeb.this, "ErrorOccured", tag, method, errorMessage);
+				EventDispatcher.dispatchEvent(CustomWeb.this, "ErrorOccured", tag, errorMessage);
 			}
 		});
 	}
