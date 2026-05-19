@@ -1,6 +1,7 @@
 package com.yashsrv.customweb;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.Options;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleProperty;
@@ -8,6 +9,8 @@ import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.YailDictionary;
+
+import com.yashsrv.customweb.helpers.HttpMethod;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -83,38 +86,10 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	}
 
   @SimpleFunction(description = "")
-	public void Get(String tag, String endpoint) {
-		performHttpRequest(tag, endpoint, "GET", null);
-	}
-
-	@SimpleFunction(description = "")
-	public void Post(String tag, String endpoint, YailDictionary body) {
-		performHttpRequest(tag, endpoint, "POST", body);
-	}
-
-	@SimpleFunction(description = "")
-	public void Put(String tag, String endpoint, YailDictionary body) {
-		performHttpRequest(tag, endpoint, "PUT", body);
-	}
-
-	@SimpleFunction(description = "")
-	public void Patch(String tag, String endpoint, YailDictionary body) {
-		performHttpRequest(tag, endpoint, "PATCH", body);
-	}
-
-	@SimpleFunction(description = "")
-	public void Delete(String tag, String endpoint) {
-		performHttpRequest(tag, endpoint, "DELETE", null);
-	}
-
-	@SimpleFunction(description = "")
-	public void Head(String tag, String endpoint) {
-		performHttpRequest(tag, endpoint, "HEAD", null);
-	}
-
-	@SimpleFunction(description = "")
-	public void Options(String tag, String endpoint) {
-		performHttpRequest(tag, endpoint, "OPTIONS", null);
+	public void MakeHttpRequest(
+			String tag, @Options(HttpMethod.class) String method,
+			String endpoint, YailDictionary body) {
+		performHttpRequest(tag, endpoint, method, body);
 	}
 
 	private void performHttpRequest( 
@@ -128,7 +103,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		try {
 			// Configure request.
 			final String url = URI.create(baseUrl).resolve(endpoint).toString();
-			final RequestBody requestBody = (body == null || body.isEmpty())
+			final RequestBody requestBody = body.isEmpty()
 					? null
 					: RequestBody.create(jsonMediaType, body.toString());
 			request = new Request.Builder()
