@@ -35,7 +35,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	private final MediaType jsonMediaType = MediaType.get("application/json");
 
 	// Simple properties.
-	private String baseUrl = "";
+	private URI baseUrl = URI.create("");
 	private Headers requestHeaders = Headers.of();
 	private int callTimeout = 0;
 
@@ -45,12 +45,12 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleProperty(description = "")
 	public void BaseUrl(String baseUrl) {
-		this.baseUrl = baseUrl;
+		this.baseUrl = URI.create(baseUrl);
 	}
 
 	@SimpleProperty(description = "")
 	public String BaseUrl() {
-		return baseUrl;
+		return baseUrl.toString();
 	}
 
 	@SimpleProperty(description = "")
@@ -119,7 +119,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	private void performHttpRequest( 
 			String tag, String endpoint, String method, YailDictionary body) {
-		if (baseUrl.isEmpty()) {
+		if (baseUrl.toString().isEmpty()) {
 			ErrorOccurred(tag, "The BaseUrl cannot be empty.");
 			return;
 		}
@@ -127,7 +127,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		final Request request;
 		try {
 			// Configure request.
-			final String url = URI.create(baseUrl).resolve(endpoint).toString();
+			final String url = baseUrl.resolve(endpoint).toString();
 			final RequestBody requestBody = (body == null || body.isEmpty())
 					? null
 					: RequestBody.create(jsonMediaType, body.toString());
