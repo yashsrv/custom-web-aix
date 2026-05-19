@@ -45,11 +45,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleProperty(description = "")
 	public void BaseUrl(String baseUrl) {
-		if (!baseUrl.isEmpty()) {
-			this.baseUrl = baseUrl;
-		} else {
-			ErrorOccured("BaseUrl", "The BaseUrl cannot be empty.");
-		}
+		this.baseUrl = baseUrl;
 	}
 
 	@SimpleProperty(description = "")
@@ -62,7 +58,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		if (!requestDict.isEmpty()) {
 			this.requestHeaders = dictToHeaders(requestDict);
 		} else {
-			ErrorOccured("RequestHeaders", "The RequestHeaders size cannot be 0.");
+			this.requestHeaders = Headers.of();
 		}
 	}
 
@@ -77,7 +73,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 			this.callTimeout = callTimeout;
 			this.client = client.newBuilder().callTimeout(callTimeout, TimeUnit.MILLISECONDS).build();
 		} else {
-			ErrorOccured("CallTimeout", "The CallTimeout cannot be negative.");
+			this.client = client.newBuilder().callTimeout(0, TimeUnit.MILLISECONDS).build();
 		}
 	}
 
@@ -123,16 +119,27 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	private void performHttpRequest( 
 			String tag, String endpoint, String method, YailDictionary body) {
-		// Configure request.
-		final String url = URI.create(baseUrl).resolve(endpoint).toString();
-		final RequestBody requestBody = (body == null || body.isEmpty())
-				? null
-				: RequestBody.create(jsonMediaType, body.toString());
-		final Request request = new Request.Builder()
-				.url(url)
-				.method(method, requestBody)
-				.headers(requestHeaders)
-				.build();
+		if (baseUrl.isEmpty()) {
+			ErrorOccurred(tag, "The BaseUrl cannot be empty.");
+			return;
+		}
+
+		final Request request;
+		try {
+			// Configure request.
+			final String url = URI.create(baseUrl).resolve(endpoint).toString();
+			final RequestBody requestBody = (body == null || body.isEmpty())
+					? null
+					: RequestBody.create(jsonMediaType, body.toString());
+			request = new Request.Builder()
+					.url(url)
+					.method(method, requestBody)
+					.headers(requestHeaders)
+					.build();
+		} catch (IllegalArgumentException e) {
+			ErrorOccurred(tag, e.getMessage());
+			return;
+		}
 
 		// Process Call Async.
 		client.newCall(request).enqueue(new Callback() {
@@ -149,7 +156,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 					OnResponse(tag, statusCode, responseDict, responseBody);
 				} catch (IOException e) {
-					ErrorOccured(tag, e.getMessage());
+					ErrorOccurred(tag, e.getMessage());
 				}
 			}
 
@@ -158,7 +165,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 				if (e instanceof SocketTimeoutException) {
 					CallTimedOut(tag, e.getMessage());
 				} else {
-					ErrorOccured(tag, e.getMessage());
+					ErrorOccurred(tag, e.getMessage());
 				}
 			}
 		});
@@ -203,11 +210,11 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	}
 
 	@SimpleEvent(description = "")
-	public void ErrorOccured(String tag, String errorMessage) {
+	public void ErrorOccurred(String tag, String errorMessage) {
 		form.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				EventDispatcher.dispatchEvent(CustomWeb.this, "ErrorOccured", tag, errorMessage);
+				EventDispatcher.dispatchEvent(CustomWeb.this, "ErrorOccurred", tag, errorMessage);
 			}
 		});
 	}
