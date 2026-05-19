@@ -10,6 +10,8 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.YailDictionary;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -29,11 +31,12 @@ import okhttp3.Response;
 )
 public class CustomWeb extends AndroidNonvisibleComponent {
 
-	private final OkHttpClient client = new OkHttpClient();
+	private OkHttpClient client = new OkHttpClient();
+	private final MediaType jsonMediaType = MediaType.get("application/json");
 
 	// Simple properties.
 	private String baseUrl = "";
-	private YailDictionary requestDict = new YailDictionary();
+	private Headers requestHeaders = Headers.of();
 	private int callTimeout = 0;
 
   public CustomWeb(ComponentContainer container) {
@@ -55,9 +58,9 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	}
 
 	@SimpleProperty(description = "")
-	public void RequestHeaders(YailDictionary requestHeaders) {
-		if (!requestHeaders.isEmpty()) {
-			this.requestDict = requestHeaders;
+	public void RequestHeaders(YailDictionary requestDict) {
+		if (!requestDict.isEmpty()) {
+			this.requestHeaders = dictToHeaders(requestDict);
 		} else {
 			ErrorOccured("RequestHeaders", "The RequestHeaders size cannot be 0.");
 		}
@@ -65,13 +68,14 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleProperty(description = "")
 	public YailDictionary RequestHeaders() {
-		return requestDict;
+		return headersToDict(requestHeaders);
 	}
 
 	@SimpleProperty(description = "")
 	public void CallTimeout(int callTimeout) {
-		if (callTimeout > 0) {
+		if (callTimeout >= 0) {
 			this.callTimeout = callTimeout;
+			this.client = client.newBuilder().callTimeout(callTimeout, TimeUnit.MILLISECONDS).build();
 		} else {
 			ErrorOccured("CallTimeout", "The CallTimeout cannot be negative.");
 		}
@@ -89,18 +93,41 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleFunction(description = "")
 	public void Post(String tag, String endpoint, YailDictionary body) {
-		performHttpRequest(tag, endpoint, "POST", body.toString());
+		performHttpRequest(tag, endpoint, "POST", body);
 	}
 
-	private void performHttpRequest(String tag, String endpoint, String method, String body) {
-		// Configure request.
-		final String url = baseUrl + endpoint;
-		final Headers requestHeaders = dictToHeaders(requestDict);
-		client.newBuilder().callTimeout(callTimeout, TimeUnit.MICROSECONDS).build();
-		RequestBody requestBody = body == null
-				? null
-				: RequestBody.create(MediaType.get("application/json"), body);
+	@SimpleFunction(description = "")
+	public void Put(String tag, String endpoint, YailDictionary body) {
+		performHttpRequest(tag, endpoint, "PUT", body);
+	}
 
+	@SimpleFunction(description = "")
+	public void Patch(String tag, String endpoint, YailDictionary body) {
+		performHttpRequest(tag, endpoint, "PATCH", body);
+	}
+
+	@SimpleFunction(description = "")
+	public void Delete(String tag, String endpoint) {
+		performHttpRequest(tag, endpoint, "DELETE", null);
+	}
+
+	@SimpleFunction(description = "")
+	public void Head(String tag, String endpoint) {
+		performHttpRequest(tag, endpoint, "HEAD", null);
+	}
+
+	@SimpleFunction(description = "")
+	public void Options(String tag, String endpoint) {
+		performHttpRequest(tag, endpoint, "OPTIONS", null);
+	}
+
+	private void performHttpRequest( 
+			String tag, String endpoint, String method, YailDictionary body) {
+		// Configure request.
+		final String url = URI.create(baseUrl).resolve(endpoint).toString();
+		final RequestBody requestBody = (body == null || body.isEmpty())
+				? null
+				: RequestBody.create(jsonMediaType, body.toString());
 		final Request request = new Request.Builder()
 				.url(url)
 				.method(method, requestBody)
@@ -128,7 +155,11 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 			@Override
 			public void onFailure(Call call, IOException e) {
-				ErrorOccured(tag, e.getMessage());
+				if (e instanceof SocketTimeoutException) {
+					CallTimedOut(tag, e.getMessage());
+				} else {
+					ErrorOccured(tag, e.getMessage());
+				}
 			}
 		});
 	}
@@ -151,8 +182,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 	@SimpleEvent(description = "")
 	public void OnResponse(
-			final String tag, final int statusCode, 
-			final YailDictionary responseHeaders, final String responseBody) {
+			String tag, int statusCode, YailDictionary responseHeaders, String responseBody) {
 		form.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
@@ -163,7 +193,17 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	}
 
 	@SimpleEvent(description = "")
-	public void ErrorOccured(final String tag, final String errorMessage) {
+	public void CallTimedOut(String tag, String errorMessage) {
+		form.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				EventDispatcher.dispatchEvent(CustomWeb.this, "CallTimedOut", tag, errorMessage);
+			}
+		});
+	}
+
+	@SimpleEvent(description = "")
+	public void ErrorOccured(String tag, String errorMessage) {
 		form.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
