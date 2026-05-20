@@ -15,6 +15,7 @@ import com.yashsrv.customweb.helpers.HttpMethod;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -89,6 +90,10 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	public void MakeHttpRequest(
 			String tag, @Options(HttpMethod.class) String method,
 			String endpoint, YailDictionary body) {
+		if (Arrays.asList("GET", "DELETE", "HEAD", "OPTIONS").contains(method)) {
+			// Pass empty YailDictionary for these methods. (do not rely on user)
+			body = new YailDictionary();
+		}
 		performHttpRequest(tag, endpoint, method, body);
 	}
 
