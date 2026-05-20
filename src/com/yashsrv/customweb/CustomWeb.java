@@ -8,6 +8,7 @@ import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
+import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.appinventor.components.runtime.util.YailDictionary;
 
 import com.yashsrv.customweb.helpers.HttpMethod;
@@ -26,6 +27,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+
+import org.json.JSONException;
 
 @DesignerComponent(
 	version = 1,
@@ -95,6 +98,16 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 			body = new YailDictionary();
 		}
 		performHttpRequest(tag, endpoint, method, body);
+	}
+
+	@SimpleFunction(description = "")
+	public YailDictionary JsonToDictionary (String jsonString) {
+		try {
+			return (YailDictionary) JsonUtil.getObjectFromJson(jsonString, true);
+		} catch (JSONException e) {
+			ErrorOccurred("JsonToDictionary", e.getMessage());
+		}
+		return new YailDictionary();
 	}
 
 	private void performHttpRequest( 
