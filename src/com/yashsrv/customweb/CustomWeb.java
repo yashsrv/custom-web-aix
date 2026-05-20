@@ -39,7 +39,6 @@ import org.json.JSONException;
 public class CustomWeb extends AndroidNonvisibleComponent {
 
 	private OkHttpClient client = new OkHttpClient();
-	private final MediaType jsonMediaType = MediaType.get("application/json");
 
 	// Simple properties.
 	private String baseUrl = "";
@@ -92,10 +91,9 @@ public class CustomWeb extends AndroidNonvisibleComponent {
   @SimpleFunction(description = "")
 	public void MakeHttpRequest(
 			String tag, @Options(HttpMethod.class) String method,
-			String endpoint, YailDictionary body) {
+			String endpoint, String body) {
 		if (Arrays.asList("GET", "DELETE", "HEAD", "OPTIONS").contains(method)) {
-			// Pass empty YailDictionary for these methods. (do not rely on user)
-			body = new YailDictionary();
+			body = null;
 		}
 		performHttpRequest(tag, endpoint, method, body);
 	}
@@ -110,8 +108,13 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		return new YailDictionary();
 	}
 
+	@SimpleFunction(description = "")
+	public String DictionaryToJson (YailDictionary dictionary) {
+		return dictionary.toString();
+	}
+
 	private void performHttpRequest( 
-			String tag, String endpoint, String method, YailDictionary body) {
+			String tag, String endpoint, String method, String body) {
 		if (baseUrl.isEmpty()) {
 			ErrorOccurred(tag, "The BaseUrl cannot be empty.");
 			return;
@@ -121,9 +124,9 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 		try {
 			// Configure request.
 			final String url = URI.create(baseUrl).resolve(endpoint).toString();
-			final RequestBody requestBody = body.isEmpty()
+			final RequestBody requestBody = body == null
 					? null
-					: RequestBody.create(jsonMediaType, body.toString());
+					: RequestBody.create((MediaType) null, body);
 			request = new Request.Builder()
 					.url(url)
 					.method(method, requestBody)
