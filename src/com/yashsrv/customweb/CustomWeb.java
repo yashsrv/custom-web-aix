@@ -99,6 +99,24 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 	}
 
 	@SimpleFunction(description = "")
+	public void CancelAllRequests() {
+		client.dispatcher().cancelAll();
+	}
+
+	@SimpleFunction(description = "")
+	public void CancelRequestsByTag(String tag) {
+		// Cancel queued calls.
+		for (Call call : client.dispatcher().queuedCalls()) {
+			if(tag.equals(call.request().tag())) call.cancel();
+		}
+
+		// Cancel running calls.
+		for (Call call : client.dispatcher().runningCalls()) {
+			if(tag.equals(call.request().tag())) call.cancel();
+		}
+	}
+
+	@SimpleFunction(description = "")
 	public YailDictionary JsonToDictionary (String jsonString) {
 		try {
 			return (YailDictionary) JsonUtil.getObjectFromJson(jsonString, true);
@@ -131,6 +149,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 					.url(url)
 					.method(method, requestBody)
 					.headers(requestHeaders)
+					.tag(tag)
 					.build();
 		} catch (IllegalArgumentException e) {
 			ErrorOccurred(tag, e.getMessage());
@@ -158,6 +177,11 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 			@Override
 			public void onFailure(Call call, IOException e) {
+				// Canceled calls trigger IOException.
+				if (call.isCanceled()) {
+					RequestCanceled(tag, e.getMessage());
+				}
+
 				if (e instanceof InterruptedIOException) {
 					CallTimedOut(tag, e.getMessage());
 				} else {
@@ -201,6 +225,16 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 			@Override
 			public void run() {
 				EventDispatcher.dispatchEvent(CustomWeb.this, "CallTimedOut", tag, errorMessage);
+			}
+		});
+	}
+
+	@SimpleEvent(description = "")
+	public void RequestCanceled(String tag, String errorMessage) {
+		form.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				EventDispatcher.dispatchEvent(CustomWeb.this, "RequestCanceled", tag, errorMessage);
 			}
 		});
 	}
