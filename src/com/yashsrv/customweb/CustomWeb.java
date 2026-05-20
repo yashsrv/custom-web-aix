@@ -14,7 +14,7 @@ import com.google.appinventor.components.runtime.util.YailDictionary;
 import com.yashsrv.customweb.helpers.HttpMethod;
 
 import java.io.IOException;
-import java.net.SocketTimeoutException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -158,7 +158,7 @@ public class CustomWeb extends AndroidNonvisibleComponent {
 
 			@Override
 			public void onFailure(Call call, IOException e) {
-				if (e instanceof SocketTimeoutException) {
+				if (e instanceof InterruptedIOException) {
 					CallTimedOut(tag, e.getMessage());
 				} else {
 					ErrorOccurred(tag, e.getMessage());
